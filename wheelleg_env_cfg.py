@@ -114,7 +114,15 @@ class EventCfg:
         },
     )
     """
-    
+    reset_joints = EventTerm(
+    func=mdp.reset_joints_by_offset,
+    mode="reset",
+    params={
+        "asset_cfg": SceneEntityCfg("robot"),
+        "position_range": (0.0, 0.0),   # 不随机：严格回默认姿态
+        "velocity_range": (0.0, 0.0),
+    },
+)
 
     reset_base = EventTerm(
         func=mdp.reset_root_state_uniform,
@@ -124,6 +132,8 @@ class EventCfg:
                 "x": (-0.5, 0.5), 
                 "y": (-0.5, 0.5), 
                 "z": (0.291, 0.291),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
                 "yaw": (-3.14, 3.14)},
                            
             "velocity_range": {
@@ -153,12 +163,7 @@ class RewardsCfg:
     #wheel_contact = RewTerm(func=mdp.undesired_contacts, weight=1.0, params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="left_wheel_link"), "threshold": 1.0},)
     leg_contact_p = RewTerm(
         func=mdp.undesired_contacts, weight=-1.0,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_forw_link", "left_back_link", "right_forw_link", "right_back_link", "left_forw_p_link", "right_forw_p_link", "left_back_p_link", "right_back_p_link"]), "threshold": 1.0},
-    )
-
-    leg_contect_r = RewTerm(
-        func=leg_air_time, weight=0.5,
-        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_forw_p_link", "right_forw_p_link", "left_back_p_link", "right_back_p_link"]), "threshold": 0.5},
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=["left_forw_link", "left_back_link", "right_forw_link", "right_back_link", "left_forw_p_link", "right_forw_p_link", "left_back_p_link", "right_back_p_link"]), "threshold": 0.2},
     )
 
     #lin_vel_xyz_exp = RewTerm(func=lin_vel_xyz_exp, weight=-0.5, params={"std": 0.5})
@@ -167,12 +172,17 @@ class RewardsCfg:
     #dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-2.5e-7)
     #action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
 
-    balance_exp = RewTerm(func=balance_exp, weight=-1.0, params={"std": 0.5})
+    balance_exp = RewTerm(func=balance_exp, weight=2.0, params={"std": 0.5})
 
 @configclass
 class TerminationsCfg:
 
     time_out = DoneTerm(func=mdp.time_out, time_out=True)
+
+    bad_orientation = DoneTerm(
+        func=mdp.bad_orientation,
+        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.7},  # ~40deg
+    )
 
 @configclass
 class WheelLegEnvCfg(ManagerBasedRLEnvCfg):
