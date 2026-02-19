@@ -9,7 +9,7 @@ class WheelLegRSLRLCfg(RslRlOnPolicyRunnerCfg):
     save_interval = 50
     experiment_name = "wheelleg"
     policy = RslRlPpoActorCriticCfg(
-        init_noise_std=0.8,
+        init_noise_std=0.5,
         actor_hidden_dims=[256, 256, 128],
         critic_hidden_dims=[256, 256, 128],
         activation="elu",
