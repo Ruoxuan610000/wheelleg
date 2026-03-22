@@ -51,9 +51,9 @@ WHEELLEG_CFG = ArticulationCfg(
                 "left_forw_joint",
                 "left_back_joint",
             ],
-            effort_limit_sim=23.0,
-            stiffness=100,
-            damping=5.0,
+            effort_limit_sim=35.0,
+            stiffness=140.0,
+            damping=8.0,
         ),
 
         "right_leg_pair": ImplicitActuatorCfg(
@@ -61,13 +61,13 @@ WHEELLEG_CFG = ArticulationCfg(
                 "right_forw_joint",
                 "right_back_joint",
             ],
-            effort_limit_sim=23.0,
-            stiffness=100,
-            damping=5.0,
+            effort_limit_sim=35.0,
+            stiffness=140.0,
+            damping=8.0,
         ),
 
     },
-    soft_joint_pos_limit_factor=1.0,
+    soft_joint_pos_limit_factor=0.97,
 )
 
 WHEELLEG_MINIMAL_CFG = WHEELLEG_CFG.copy()
