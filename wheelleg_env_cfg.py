@@ -32,7 +32,13 @@ class WheelLegSceneCfg(InteractiveSceneCfg):
 
     robot: ArticulationCfg = WHEELLEG_CFG.replace(prim_path="{ENV_REGEX_NS}/robot")
 
-    contact_forces = ContactSensorCfg(prim_path="{ENV_REGEX_NS}/robot/.*", history_length=3, track_air_time=True)
+    contact_forces = ContactSensorCfg(
+        # The imported wheelleg USD contains one nested root prim (for example `wheellegv3`)
+        # under `robot`, so the runtime body path is `.../robot/<root>/base_link`.
+        prim_path="{ENV_REGEX_NS}/robot/.*/.*",
+        history_length=3,
+        track_air_time=True,
+    )
 
     dome_light = AssetBaseCfg(
         prim_path="/World/dome_light",
@@ -44,10 +50,10 @@ class CommandsCfg:
 
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
-        rel_standing_envs=0.2,
-        rel_heading_envs=0.0,
-        heading_command=False,
+        resampling_time_range=(5.0, 5.0),
+        rel_standing_envs=0.0,
+        rel_heading_envs=1.0,
+        heading_command=True,
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
@@ -60,43 +66,33 @@ class CommandsCfg:
 
     height_command = mdp.HeightCommandCfg(
         asset_name="robot",
-        resampling_time_range=(10.0, 10.0),
+        resampling_time_range=(5.0, 5.0), 
         debug_vis=False,
         ranges=mdp.HeightCommandCfg.Ranges(
-            # The current wheel-leg asset stands around 0.30 m at reset.
-            # Sampling much higher targets makes the policy learn to ignore the
-            # height command and keep the rear legs folded.
-            height=(0.30, 0.40),
+            height=(0.12, 0.12),
         ),
     )
 
 @configclass
 class ActionsCfg:
 
-    leg_pos = mdp.JointPositionActionWithOffsetCfg(
+    leg_pos = mdp.JointPositionActionCfg(
         asset_name="robot", 
         joint_names=["left_forw_joint", "left_back_joint", "right_forw_joint", "right_back_joint",],
-        scale=1.0,
-        clip={".*": (-1.2, 1.2)},
+        scale=0.85,
+        clip={".*": (-1.25, 1.25)},
         use_default_offset=True,
         preserve_order=True,
         )
     
-    left_wheel_vel = mdp.JointVelocityActionCfg(
+    wheel_vel = mdp.JointVelocityActionCfg(
         asset_name="robot",
-        joint_names=["left_wheel_joint"],
-        scale=8.0,
-        clip={".*": (-8.0, 8.0)},
+        joint_names=["left_wheel_joint", "right_wheel_joint"],
+        scale=6.0,
+        clip={".*": (-6.0, 6.0)},
         use_default_offset=False,
         )
 
-    right_wheel_vel = mdp.JointVelocityActionCfg(
-        asset_name="robot",
-        joint_names=["right_wheel_joint"],
-        scale=-8.0,
-        clip={".*": (-8.0, 8.0)},
-        use_default_offset=False,
-        )
 
 @configclass
 class ObservationsCfg:
@@ -159,7 +155,7 @@ class EventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=["base_link"]),
-            "mass_distribution_params": (-0.2, 0.5),
+            "mass_distribution_params": (0.0, 0.1),
             "operation": "add",
             "distribution": "uniform",
             "recompute_inertia": True,
@@ -172,9 +168,9 @@ class EventCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base_link"),
             "com_range": {
-                "x": (-0.01, 0.01),
-                "y": (-0.005, 0.005),
-                "z": (-0.005, 0.005),
+                "x": (-0.002, 0.002),
+                "y": (-0.002, 0.002),
+                "z": (-0.002, 0.002),
             },
         },
     )
@@ -267,7 +263,7 @@ class RewardsCfg:
     
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=3.0, 
+        weight=3.5, 
         params={"command_name": "base_velocity", "std":0.35} 
     )
 
@@ -279,19 +275,34 @@ class RewardsCfg:
 
     track_yaw_rate_l2 = RewTerm(
         func=mdp.track_ang_vel_z_exp, 
-        weight=0.0, 
+        weight=0.5, 
         params={"command_name": "base_velocity", "std":0.2}
     )
 
-    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-5.0)
+    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-3.0)
 
+    #base_pitch_l2 = RewTerm(func=mdp.base_pitch_l2, weight=-4.0)
+
+    """
     base_height_reward = RewTerm(
         func=mdp.rew_base_height_exp,
-        weight=3.0,
-        params={"command_name": "height_command", "std": 0.005},
+        weight=8.0,
+        params={"command_name": "height_command", "std": 0.002},
     )
+    """
 
-    vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.5,)
+    base_height_reward = RewTerm(
+        func=mdp.rew_base_height_level_exp,
+        weight=4.0,
+        params={
+            "command_name": "height_command",
+            "std_height": 0.004,
+            "std_pitch": 0.12,
+            "pitch_deadband": 0.12,
+        },
+    )
+    
+    vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-3.0,)
 
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.1)
 
@@ -299,12 +310,12 @@ class RewardsCfg:
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2, 
-        weight=-0.01,    
+        weight=-0.05,    
     )
 
     leg_joint_vel_l2 = RewTerm(
         func=mdp.joint_vel_l2, 
-        weight=-5e-5, 
+        weight=-2e-4, 
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=["left_forw_joint", "left_back_joint","right_forw_joint", "right_back_joint",], preserve_order=True,)},
     )
 
@@ -313,35 +324,15 @@ class RewardsCfg:
     collison = RewTerm(
         func=mdp.undesired_contacts, weight=-0.2,
         params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base_link"]), 
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base_link", "left_forw_link", "left_back_link", "right_forw_link", "right_back_link",
+                                                                       "left_forw_p_link", "left_back_p_link", "right_forw_p_link", "right_back_p_link"]), 
             "threshold": 1.0
         },
     )
-    
-    avoid_default_leg_pose = RewTerm(
-        func=mdp.joint_pos_near_default_penalty,
-        weight=-0.5,
-        params={
-            "threshold": 0.08,
-            "power": 2.0,
-            "normalize": True,
-            "asset_cfg": SceneEntityCfg(
-                "robot",
-                joint_names=[
-                    "left_forw_joint",
-                    "left_back_joint",
-                    "right_forw_joint",
-                    "right_back_joint",
-                ],
-                preserve_order=True,
-            ),
-        },
-    )
 
-
-    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-0.2)
+    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-1.5)
     
-    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.01)
+    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.06)
     
 
 @configclass
@@ -351,7 +342,7 @@ class TerminationsCfg:
 
     bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.85},
+        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.95},
     )
 
     bad_contact = DoneTerm(
@@ -361,15 +352,8 @@ class TerminationsCfg:
             "threshold": 10,}
     )
 
-    #joint_pos_out_of_manual_limit = DoneTerm(
-    #    func=mdp.joint_pos_out_of_manual_limit,
-    #    params={"asset_cfg": SceneEntityCfg("robot", joint_names=["left_forw_joint", "left_back_joint","right_forw_joint", "right_back_joint",], preserve_order=True), "bounds": (-1.57*0.67, 1.57*0.67)}
-    #)
-
-
 @configclass
 class CurriculumsCfg:
-    #terrain_levels = CurrTerm(func=mdp.terrain_levels_wheel_legged)
 
     command_lin_vel_x_stage1 = CurrTerm(
         func=mdp.modify_term_cfg,
@@ -385,16 +369,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.5), "num_steps": 200_000},
-        },
-    )
-
-    command_lin_vel_x_stage3 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.ranges.lin_vel_x",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.8), "num_steps": 600_000},
+            "modify_params": {"value": (0.0, 0.6), "num_steps": 60_000},
         },
     )
 
@@ -403,96 +378,11 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (-1.0, 1.0), "num_steps": 1_000_000},
+            "modify_params": {"value": (0.0, 1.0), "num_steps": 120_000},
         },
     )
 
-    standing_envs_stage1 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_standing_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 0.8, "num_steps": 0},
-        },
-    )
-
-    standing_envs_stage2 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_standing_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 0.5, "num_steps": 300_000},
-        },
-    )
-
-    standing_envs_stage3 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_standing_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 0.2, "num_steps": 800_000},
-        },
-    )
-
-    heading_off = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.heading_command",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": False, "num_steps": 0},
-        },
-    )
-
-    heading_on = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.heading_command",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": True, "num_steps": 800_000},
-        },
-    )
-
-    rel_heading_envs_stage1 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_heading_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 0.0, "num_steps": 0},
-        },
-    )
-
-    rel_heading_envs_stage2 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_heading_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 0.2, "num_steps": 800_000},
-        },
-    )
-
-    rel_heading_envs_stage3 = CurrTerm(
-        func=mdp.modify_term_cfg,
-        params={
-            "address": "commands.base_velocity.rel_heading_envs",
-            "modify_fn": mdp.override_after,
-            "modify_params": {"value": 1.0, "num_steps": 1_200_000},
-        },
-    )
-
-    yaw_reward_stage1 = CurrTerm(
-        func=mdp.modify_reward_weight,
-        params={"term_name": "track_yaw_rate_l2", "weight": 0.0, "num_steps": 0},
-    )
-
-    yaw_reward_stage2 = CurrTerm(
-        func=mdp.modify_reward_weight,
-        params={"term_name": "track_yaw_rate_l2", "weight": 0.5, "num_steps": 800_000},
-    )
-
-    yaw_reward_stage3 = CurrTerm(
-        func=mdp.modify_reward_weight,
-        params={"term_name": "track_yaw_rate_l2", "weight": 1.0, "num_steps": 1_200_000},
-    )
+    
 
 @configclass
 class WheelLegEnvCfg(ManagerBasedRLEnvCfg):
@@ -512,6 +402,7 @@ class WheelLegEnvCfg(ManagerBasedRLEnvCfg):
         # general settings
         self.decimation = 2
         self.episode_length_s = 20.0
+        self.scene.robot.spawn.activate_contact_sensors = True
         # simulation settings
         self.sim.dt = 0.005
         self.sim.render_interval = self.decimation

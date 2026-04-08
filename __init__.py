@@ -23,7 +23,7 @@ gym.register(
 )
 
 gym.register(
-    id="Isaac-WheelLeg-V2-v0",
+    id="Isaac-WheelLeg-v2",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={

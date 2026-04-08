@@ -172,3 +172,4 @@ def update_command_curriculum(
         torch.clamp(torch.tensor(lo - expand_step), min=-basic_max_curriculum, max=0.0).item(),
         torch.clamp(torch.tensor(hi + expand_step), min=0.0, max=basic_max_curriculum).item(),
     )
+

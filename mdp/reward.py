@@ -152,3 +152,37 @@ class rew_action_acc_l2(ManagerTermBase):
         self.prev_prev_action[:] = prev_action
 
         return torch.sum(torch.square(action_acc), dim=1)
+
+def base_pitch_l2(
+    env: ManagerBasedRLEnv,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    asset = env.scene[asset_cfg.name]
+    _, pitch, _ = euler_xyz_from_quat(asset.data.root_quat_w)
+    return torch.square(pitch)
+
+
+def rew_base_height_level_exp(
+    env: ManagerBasedRLEnv,
+    std_height: float,
+    std_pitch: float,
+    pitch_deadband: float,
+    command_name: str,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+):
+    asset = env.scene[asset_cfg.name]
+
+    target_height = env.command_manager.get_command(command_name)
+    if target_height.ndim > 1:
+        target_height = target_height.squeeze(-1)
+
+    current_height = asset.data.root_link_pos_w[:, 2]
+    _, pitch, _ = euler_xyz_from_quat(asset.data.root_link_quat_w)
+
+    height_error = torch.square(target_height - current_height)
+
+    # 允许小范围 pitch，不然策略早期太僵
+    pitch_violation = torch.clamp(torch.abs(pitch) - pitch_deadband, min=0.0)
+    pitch_error = torch.square(pitch_violation)
+
+    return torch.exp(-height_error / std_height - pitch_error / std_pitch)

@@ -4,7 +4,7 @@ from isaaclab.assets import ArticulationCfg
 
 WHEELLEG_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path="/root/IsaacLab/source/isaaclab_assets/data/Robots/WheelLeg/wheelleg3.usd",
+        usd_path="/root/IsaacLab/source/isaaclab_assets/isaaclab_assets/robots/WheelLeg/wheellegv3.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -18,7 +18,7 @@ WHEELLEG_CFG = ArticulationCfg(
     ),
 
     init_state=ArticulationCfg.InitialStateCfg(
-        pos=(0.0, 0.0, 0.291),
+        pos=(0.0, 0.0, 0.114),
         joint_pos={
             "left_forw_joint": 0.0,
             "left_back_joint": 0.0,
@@ -41,9 +41,9 @@ WHEELLEG_CFG = ArticulationCfg(
                 "left_wheel_joint",
                 "right_wheel_joint",
             ],
-            effort_limit_sim=8.0,
+            effort_limit_sim=2.0,
             stiffness=0.0,
-            damping=2.0,
+            damping=0.5,
         ),
 
         "left_leg_pair": ImplicitActuatorCfg(
@@ -51,9 +51,9 @@ WHEELLEG_CFG = ArticulationCfg(
                 "left_forw_joint",
                 "left_back_joint",
             ],
-            effort_limit_sim=35.0,
-            stiffness=140.0,
-            damping=8.0,
+            effort_limit_sim=0.70,
+            stiffness=6.0,
+            damping=0.6,
         ),
 
         "right_leg_pair": ImplicitActuatorCfg(
@@ -61,13 +61,13 @@ WHEELLEG_CFG = ArticulationCfg(
                 "right_forw_joint",
                 "right_back_joint",
             ],
-            effort_limit_sim=35.0,
-            stiffness=140.0,
-            damping=8.0,
+            effort_limit_sim=0.70,
+            stiffness=6.0,
+            damping=0.6,
         ),
 
     },
-    soft_joint_pos_limit_factor=0.97,
+    soft_joint_pos_limit_factor=0.80,
 )
 
 WHEELLEG_MINIMAL_CFG = WHEELLEG_CFG.copy()
