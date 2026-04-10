@@ -51,15 +51,15 @@ class CommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(5.0, 5.0),
-        rel_standing_envs=0.0,
+        rel_standing_envs=0.2,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.0, 1.0),
+            lin_vel_x=(0.0, 0.8),
             lin_vel_y=(0.0, 0.0),
-            ang_vel_z=(0.0, 0.0),
+            ang_vel_z=(-1.0, 1.0),
             heading=(-math.pi, math.pi),
         ),
     )
@@ -69,7 +69,7 @@ class CommandsCfg:
         resampling_time_range=(5.0, 5.0), 
         debug_vis=False,
         ranges=mdp.HeightCommandCfg.Ranges(
-            height=(0.12, 0.12),
+            height=(0.13, 0.13),
         ),
     )
 
@@ -263,7 +263,7 @@ class RewardsCfg:
     
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=3.5, 
+        weight=3, 
         params={"command_name": "base_velocity", "std":0.35} 
     )
 
@@ -279,16 +279,17 @@ class RewardsCfg:
         params={"command_name": "base_velocity", "std":0.2}
     )
 
-    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-3.0)
+    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-8.0)
 
     #base_pitch_l2 = RewTerm(func=mdp.base_pitch_l2, weight=-4.0)
 
-    """
+    
     base_height_reward = RewTerm(
         func=mdp.rew_base_height_exp,
-        weight=8.0,
+        weight=3.0,
         params={"command_name": "height_command", "std": 0.002},
     )
+
     """
 
     base_height_reward = RewTerm(
@@ -301,12 +302,15 @@ class RewardsCfg:
             "pitch_deadband": 0.12,
         },
     )
-    
-    vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-3.0,)
+    """
+
+    vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0,)
 
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.1)
 
     niminal_state = RewTerm(func=mdp.symmetry_state, weight=-1.0)
+
+    action_l2 = RewTerm(func=mdp.action_l2, weight=-0.5)
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2, 
@@ -369,7 +373,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.6), "num_steps": 60_000},
+            "modify_params": {"value": (0.0, 0.4), "num_steps": 60_000},
         },
     )
 
@@ -378,7 +382,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 1.0), "num_steps": 120_000},
+            "modify_params": {"value": (0.0, 0.8), "num_steps": 120_000},
         },
     )
 
