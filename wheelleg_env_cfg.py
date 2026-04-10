@@ -51,7 +51,7 @@ class CommandsCfg:
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
         resampling_time_range=(5.0, 5.0),
-        rel_standing_envs=0.2,
+        rel_standing_envs=0.05,
         rel_heading_envs=1.0,
         heading_command=True,
         heading_control_stiffness=0.5,
@@ -263,7 +263,7 @@ class RewardsCfg:
     
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=3, 
+        weight=4, 
         params={"command_name": "base_velocity", "std":0.35} 
     )
 
@@ -286,7 +286,7 @@ class RewardsCfg:
     
     base_height_reward = RewTerm(
         func=mdp.rew_base_height_exp,
-        weight=3.0,
+        weight=2.0,
         params={"command_name": "height_command", "std": 0.002},
     )
 
@@ -310,11 +310,11 @@ class RewardsCfg:
 
     niminal_state = RewTerm(func=mdp.symmetry_state, weight=-1.0)
 
-    action_l2 = RewTerm(func=mdp.action_l2, weight=-0.5)
+    action_l2 = RewTerm(func=mdp.action_l2, weight=-0.25)
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2, 
-        weight=-0.05,    
+        weight=-0.03,    
     )
 
     leg_joint_vel_l2 = RewTerm(
@@ -334,9 +334,9 @@ class RewardsCfg:
         },
     )
 
-    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-1.5)
+    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-1.0)
     
-    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.06)
+    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.03)
     
 
 @configclass
@@ -373,7 +373,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.4), "num_steps": 60_000},
+            "modify_params": {"value": (0.0, 0.4), "num_steps": 24_000},
         },
     )
 
@@ -382,7 +382,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.8), "num_steps": 120_000},
+            "modify_params": {"value": (0.0, 0.8), "num_steps": 72_000},
         },
     )
 
