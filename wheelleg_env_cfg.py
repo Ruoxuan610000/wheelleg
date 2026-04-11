@@ -79,7 +79,7 @@ class ActionsCfg:
     leg_pos = mdp.JointPositionActionCfg(
         asset_name="robot", 
         joint_names=["left_forw_joint", "left_back_joint", "right_forw_joint", "right_back_joint",],
-        scale=0.85,
+        scale=1.0,
         clip={".*": (-1.25, 1.25)},
         use_default_offset=True,
         preserve_order=True,
@@ -286,7 +286,7 @@ class RewardsCfg:
     
     base_height_reward = RewTerm(
         func=mdp.rew_base_height_exp,
-        weight=2.0,
+        weight=5.0,
         params={"command_name": "height_command", "std": 0.002},
     )
 
@@ -346,14 +346,7 @@ class TerminationsCfg:
 
     bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.95},
-    )
-
-    bad_contact = DoneTerm(
-        func=mdp.illegal_contact,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["base_link"]),
-            "threshold": 10,}
+        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.85},
     )
 
 @configclass
