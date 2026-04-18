@@ -12,6 +12,7 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.sensors import ContactSensorCfg
+from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
@@ -19,15 +20,31 @@ from isaaclab.sensors.ray_caster import RayCasterCfg, patterns
 import isaaclab_tasks.manager_based.user.wheelleg.mdp as mdp
 from .wheelleg import WHEELLEG_CFG
 
-
+from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 
 
 @configclass
 class WheelLegSceneCfg(InteractiveSceneCfg):
 
-    ground = AssetBaseCfg(
+    terrain = TerrainImporterCfg(
         prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
+        terrain_type="generator",
+        terrain_generator=ROUGH_TERRAINS_CFG,
+        max_init_terrain_level=5,
+        collision_group=-1,
+        physics_material=sim_utils.RigidBodyMaterialCfg(
+            friction_combine_mode="multiply",
+            restitution_combine_mode="multiply",
+            static_friction=1.0,
+            dynamic_friction=1.0,
+        ),
+        visual_material=sim_utils.MdlFileCfg(
+            mdl_path=f"{ISAACLAB_NUCLEUS_DIR}/Materials/TilesMarbleSpiderWhiteBrickBondHoned/TilesMarbleSpiderWhiteBrickBondHoned.mdl",
+            project_uvw=True,
+            texture_scale=(0.25, 0.25),
+        ),
+        debug_vis=False,
     )
 
     robot: ArticulationCfg = WHEELLEG_CFG.replace(prim_path="{ENV_REGEX_NS}/robot")
@@ -50,23 +67,24 @@ class CommandsCfg:
 
     base_velocity = mdp.UniformVelocityCommandCfg(
         asset_name="robot",
-        resampling_time_range=(5.0, 5.0),
-        rel_standing_envs=0.05,
+        # Keep commands around longer so the low-torque wheel actuator has time to settle.
+        resampling_time_range=(10.0, 10.0),
+        rel_standing_envs=0.02,
         rel_heading_envs=1.0,
         heading_command=True,
-        heading_control_stiffness=0.5,
+        heading_control_stiffness=0.35,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.0, 0.8),
+            lin_vel_x=(-0.3, 0.3),
             lin_vel_y=(0.0, 0.0),
-            ang_vel_z=(-1.0, 1.0),
+            ang_vel_z=(-0.25, 0.25),
             heading=(-math.pi, math.pi),
         ),
     )
 
     height_command = mdp.HeightCommandCfg(
         asset_name="robot",
-        resampling_time_range=(5.0, 5.0), 
+        resampling_time_range=(10.0, 10.0), 
         debug_vis=False,
         ranges=mdp.HeightCommandCfg.Ranges(
             height=(0.13, 0.13),
@@ -79,7 +97,7 @@ class ActionsCfg:
     leg_pos = mdp.JointPositionActionCfg(
         asset_name="robot", 
         joint_names=["left_forw_joint", "left_back_joint", "right_forw_joint", "right_back_joint",],
-        scale=1.0,
+        scale=0.85,
         clip={".*": (-1.25, 1.25)},
         use_default_offset=True,
         preserve_order=True,
@@ -91,6 +109,7 @@ class ActionsCfg:
         scale=6.0,
         clip={".*": (-6.0, 6.0)},
         use_default_offset=False,
+        preserve_order=True,
         )
 
 
@@ -263,7 +282,7 @@ class RewardsCfg:
     
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, 
-        weight=4, 
+        weight=3.0, 
         params={"command_name": "base_velocity", "std":0.35} 
     )
 
@@ -278,31 +297,14 @@ class RewardsCfg:
         weight=0.5, 
         params={"command_name": "base_velocity", "std":0.2}
     )
-
-    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-8.0)
-
-    #base_pitch_l2 = RewTerm(func=mdp.base_pitch_l2, weight=-4.0)
-
     
+    balance_exp = RewTerm(func=mdp.flat_orientation_l2, weight=-8.0)
+ 
     base_height_reward = RewTerm(
         func=mdp.rew_base_height_exp,
-        weight=5.0,
-        params={"command_name": "height_command", "std": 0.002},
+        weight=3.0,
+        params={"command_name": "height_command", "std": 0.0005},
     )
-
-    """
-
-    base_height_reward = RewTerm(
-        func=mdp.rew_base_height_level_exp,
-        weight=4.0,
-        params={
-            "command_name": "height_command",
-            "std_height": 0.004,
-            "std_pitch": 0.12,
-            "pitch_deadband": 0.12,
-        },
-    )
-    """
 
     vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0,)
 
@@ -310,11 +312,11 @@ class RewardsCfg:
 
     niminal_state = RewTerm(func=mdp.symmetry_state, weight=-1.0)
 
-    action_l2 = RewTerm(func=mdp.action_l2, weight=-0.25)
+    action_l2 = RewTerm(func=mdp.action_l2, weight=-0.2)
 
     action_rate_l2 = RewTerm(
         func=mdp.action_rate_l2, 
-        weight=-0.03,    
+        weight=-0.1,    
     )
 
     leg_joint_vel_l2 = RewTerm(
@@ -334,10 +336,9 @@ class RewardsCfg:
         },
     )
 
-    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-1.0)
+    joint_pos_l2 = RewTerm(func=mdp.joint_pos_limits, weight=-1.5)
     
-    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.03)
-    
+    action_acc_l2 = RewTerm(func=mdp.rew_action_acc_l2, weight=-0.06)
 
 @configclass
 class TerminationsCfg:
@@ -346,7 +347,7 @@ class TerminationsCfg:
 
     bad_orientation = DoneTerm(
         func=mdp.bad_orientation,
-        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.85},
+        params={"asset_cfg": SceneEntityCfg("robot"), "limit_angle": 0.9},
     )
 
 @configclass
@@ -357,7 +358,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.2), "num_steps": 0},
+            "modify_params": {"value": (-0.15, 0.15), "num_steps": 0},
         },
     )
 
@@ -366,7 +367,7 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.4), "num_steps": 24_000},
+            "modify_params": {"value": (-0.3, 0.3), "num_steps": 30_000},
         },
     )
 
@@ -375,24 +376,25 @@ class CurriculumsCfg:
         params={
             "address": "commands.base_velocity.ranges.lin_vel_x",
             "modify_fn": mdp.override_after,
-            "modify_params": {"value": (0.0, 0.8), "num_steps": 72_000},
+            "modify_params": {"value": (-0.45, 0.45), "num_steps": 60_000},
         },
     )
 
-    
+@configclass
+class TerrainCurriculumsCfg:
+    terrain_levels = CurrTerm(func=mdp.terrain_levels_vel)
 
 @configclass
 class WheelLegEnvCfg(ManagerBasedRLEnvCfg):
 
     scene: WheelLegSceneCfg = WheelLegSceneCfg(num_envs=4096, env_spacing=4.0)
-
     observations: ObservationsCfg = ObservationsCfg()
     actions: ActionsCfg = ActionsCfg()
     commands: CommandsCfg = CommandsCfg()
     events:EventCfg = EventCfg()
     rewards: RewardsCfg = RewardsCfg()
     terminations: TerminationsCfg = TerminationsCfg()
-    curriculums: CurriculumsCfg = CurriculumsCfg()
+    curriculums = TerrainCurriculumsCfg()
 
     def __post_init__(self):
         """Post initialization."""
@@ -409,3 +411,53 @@ class WheelLegEnvCfg(ManagerBasedRLEnvCfg):
             self.scene.contact_forces.update_period = self.sim.dt
         #if self.scene.height_scanner is not None:
         #    self.scene.height_scanner.update_period = self.decimation * self.sim.dt
+
+@configclass
+class WheelLegFlatEnvCfg(WheelLegEnvCfg):
+
+    def __post_init__(self):
+
+        super().__post_init__()
+        """Post initialization."""
+        self.curriculums.terrain_levels = None
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+
+@configclass
+class WheelLegRoughEnvCfg(WheelLegEnvCfg):
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+        self.curriculums = TerrainCurriculumsCfg()
+
+        self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.005, 0.02)
+        self.scene.terrain.terrain_generator.sub_terrains["pyramid_stairs"].step_height_range = (0.005, 0.02)
+        self.scene.terrain.terrain_generator.sub_terrains["pyramid_stairs_inv"].step_height_range = (0.005, 0.02)   
+        self.scene.terrain.terrain_generator.sub_terrains["hf_pyramid_slope"].slope_range = (0.0, 0.22)
+        self.scene.terrain.terrain_generator.sub_terrains["hf_pyramid_slope_inv"].slope_range = (0.0, 0.2)
+        self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.005, 0.02)
+        self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_step = 0.01
+
+@configclass
+class WheelLegRoughEnvCfg_PLAY(WheelLegRoughEnvCfg):
+    def __post_init__(self):
+        # post init of parent
+        super().__post_init__()
+
+        self.curriculums = TerrainCurriculumsCfg()
+        # make a smaller scene for play
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        # spawn the robot randomly in the grid (instead of their terrain levels)
+        self.scene.terrain.max_init_terrain_level = None
+        # reduce the number of terrains to save memory
+        if self.scene.terrain.terrain_generator is not None:
+            self.scene.terrain.terrain_generator.num_rows = 5
+            self.scene.terrain.terrain_generator.num_cols = 5
+            self.scene.terrain.terrain_generator.curriculum = False
+
+        # disable randomization for play
+        self.observations.policy.enable_corruption = False
+        # remove random pushing event
+        self.events.base_external_force_torque = None
+        self.events.push_robot = None
